@@ -16,3 +16,4 @@ desktop.ini
 # PowerShell artifacts
 *.ps1xml
 
+bri assets/
