@@ -1,0 +1,18 @@
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs/temp
+*.log
+*.tmp
+*.bak
+
+# PowerShell artifacts
+*.ps1xml
+

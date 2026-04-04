@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B-Line Tower Wars - v1</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="phone-frame">
+      <header class="top-bar">
+        <h1>B-Line Tower Wars</h1>
+        <div class="score-row">
+          <span>Player: <strong id="player-score">0</strong></span>
+          <span>AI: <strong id="ai-score">0</strong></span>
+          <span>Wave: <strong id="wave-number">1</strong></span>
+        </div>
+      </header>
+
+      <section class="arena-zone">
+        <div class="arena-wrap" id="arena-drop-zone">
+          <div class="slot-row enemy-slots" id="enemy-slots"></div>
+          <canvas id="arena-canvas" width="420" height="760" aria-label="Battlefield"></canvas>
+          <div class="timer-widget" aria-label="Wave timer">
+            <div class="timer-track">
+              <div class="timer-fill" id="wave-progress-fill"></div>
+            </div>
+            <div class="timer-text">
+              <span id="phase-label">Prep</span>
+              <strong id="phase-timer">10.0</strong>
+            </div>
+          </div>
+          <div class="mana-widget" aria-label="Player mana">
+            <img class="mana-icon" src="assets/ui/mana-icon.png" alt="" />
+            <span class="mana-value" id="player-mana">9</span>
+          </div>
+          <div class="slot-row player-slots" id="player-slots"></div>
+        </div>
+      </section>
+
+      <footer class="bottom-bar">
+        <div class="card-docks">
+          <section class="dock dock-towers" id="tower-dock">
+            <div class="tower-panel" id="tower-panel"></div>
+          </section>
+          <section class="dock">
+            <div class="attacker-panel" id="attacker-panel"></div>
+          </section>
+        </div>
+        <div class="action-row">
+          <button id="replay-btn" type="button">Replay Match</button>
+          <span id="status-text">Drag towers to your 5 slots. Drag attackers into battlefield to queue.</span>
+          <button id="pause-btn" type="button">Pause</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
