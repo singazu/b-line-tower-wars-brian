@@ -1,0 +1,12 @@
+Line Tower Wars Game Design Notepad
+
+PvP
+- Can certain creeps attack other creeps?
+- Should we have a wave cap? Yes
+- Should points scored gain mana?
+- Should killing creeps gain mana?
+- Pathing? Or stick to fixed positions? Or a small batch of fixed positions?
+
+
+Rankings... why should people play consistently?
+- 
