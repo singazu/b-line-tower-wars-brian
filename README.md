@@ -1,6 +1,6 @@
-﻿# B-Line Tower Wars
+# Line Tower Wars
 
-Browser-playable prototype inspired by Line Tower Wars mods from Warcraft 3.
+Self-contained single-player lane defense strategy game inspired by Line Tower Wars mods from Warcraft 3.
 
 ## Project Structure
 
@@ -43,7 +43,7 @@ Use this if you want your existing GitHub account and branch-based team collabor
 4. Click `Create repository`.
 5. Copy all files from this folder into the new repo folder (or move this folder to match that repo path).
 6. In GitHub Desktop:
-   - Write commit message (for example: `Initial game prototype`)
+   - Write commit message (for example: `Initial game build`)
    - Commit to `main`
    - Click `Publish repository`
    - Keep it Public if you want anyone to play from web.

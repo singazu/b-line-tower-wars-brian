@@ -1,0 +1,27 @@
+{
+  "name": "tower-defense-codex",
+  "version": "1.0.0",
+  "description": "A self-contained single-player lane defense strategy game for mobile.",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/singazu/B-Line-Tower-Wars.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/singazu/B-Line-Tower-Wars/issues"
+  },
+  "homepage": "https://github.com/singazu/B-Line-Tower-Wars#readme",
+  "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/haptics": "^8.0.2"
+  }
+}

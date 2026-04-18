@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Line Tower Wars</string>
+    <string name="title_activity_main">Line Tower Wars</string>
+    <string name="package_name">com.jhbr.linetowerwars</string>
+    <string name="custom_url_scheme">com.jhbr.linetowerwars</string>
+</resources>
