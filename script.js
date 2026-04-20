@@ -1,5 +1,5 @@
 const PREP_SECONDS = 15;
-const MAX_ROUNDS = 3;
+const MAX_ROUNDS = 10;
 const MANA_CAP = 99;
 const ROUND_BANNER_SECONDS = 1.8;
 const SHOP_UPGRADE_COST = 3;
