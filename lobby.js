@@ -284,12 +284,18 @@
         if (!def) return null;
         const lvl = opponentTowerUpgrades[towerId] || 0;
         const mult = Math.pow(TOWER_UPGRADE_MULTIPLIER, lvl);
+        const coneDegrees = Number.isFinite(def.coneDegrees) ? def.coneDegrees : BASE_TOWER_CONE_DEGREES;
+        const coneHalfAngleRad = (coneDegrees * Math.PI) / 360;
         return {
           ...def,
           damage:   def.damage   * mult,
           range:    def.range    * mult,
           fireRate: def.fireRate / mult,
-          cooldown: 0
+          cooldown: 0,
+          coneDegrees,
+          coneHalfAngleRad,
+          coneHalfAngleCos: Math.cos(coneHalfAngleRad),
+          maxTargets: Math.max(1, def.maxTargets || 1)
         };
       });
 
