@@ -16,4 +16,16 @@ desktop.ini
 # PowerShell artifacts
 *.ps1xml
 
+match-stats.json
 bri assets/
+
+# Local caches and temp artifacts
+.npm-cache/
+.tmp-pdf-pages/
+.tmp-test-artifacts/
+node_modules/
+
+# Local reference and env-specific files
+Claude Path to App Store.pdf
+Firebase SDK.ts
+android/app/google-services.json

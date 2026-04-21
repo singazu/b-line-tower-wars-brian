@@ -9,12 +9,6 @@ const TOWER_UPGRADE_MULTIPLIER = 1.2;
 const MAX_TOWER_UPGRADES = 2;
 const STATS_STORAGE_KEY = "bline-tower-wars-match-stats";
 const MATCH_STATE_STORAGE_KEY = "line-tower-wars-active-match";
-
-// Multiplayer mode — set by lobby.js when a match is found, cleared on exit
-let multiplayerRole          = null;   // null | "host" | "guest"
-let multiplayerRoomId        = null;
-let multiplayerOpponentName  = "Opponent";
-let opponentAttackerUpgrades = {};     // loaded from Firebase before each battle
 const TOWER_CONE_HALF_ANGLE_RAD = (65 * Math.PI) / 180;
 const TOWER_CONE_HALF_ANGLE_COS = Math.cos(TOWER_CONE_HALF_ANGLE_RAD);
 const LOGICAL_CANVAS_WIDTH = 420;
@@ -114,7 +108,6 @@ const playerScoreEl = document.getElementById("player-score");
 const aiScoreEl = document.getElementById("ai-score");
 const waveNumberEl = document.getElementById("wave-number");
 const playerManaEl = document.getElementById("player-mana");
-const shopManaValueEl = document.getElementById("shop-mana-value");
 const phaseLabelEl = document.getElementById("phase-label");
 const phaseTimerEl = document.getElementById("phase-timer");
 const waveProgressFillEl = document.getElementById("wave-progress-fill");
@@ -499,7 +492,7 @@ function queueStatsSave() {
 }
 
 function saveMatchStateNow() {
-  if (!state.hasActiveMatch || state.gameOver || multiplayerRole !== null) {
+  if (!state.hasActiveMatch || state.gameOver) {
     localStorage.removeItem(MATCH_STATE_STORAGE_KEY);
     return;
   }
@@ -689,7 +682,7 @@ function renderRankingRows(container, items, emptyLabel) {
 
 function refreshMenuUI() {
   const profile = getProfileStats();
-  const hasResume = state.hasActiveMatch && !state.gameOver && multiplayerRole === null;
+  const hasResume = state.hasActiveMatch && !state.gameOver;
   playMatchBtnEl.textContent = hasResume ? "Start New Match" : "Play Match";
   resumeMatchBtnEl.classList.toggle("hidden", !hasResume);
   menuMetaEl.textContent = profile.matchesPlayed > 0
@@ -815,7 +808,6 @@ function towerPowerScore(tower) {
 }
 
 function resetMatch() {
-  _battleResolving = false;
   state.waveNumber = 1;
   state.phase = "banner";
   state.phaseTimer = PREP_SECONDS;
@@ -866,7 +858,6 @@ function resetMatch() {
   state.soundCooldowns.red = 0;
   state.soundCooldowns.green = 0;
   state.soundCooldowns.orange = 0;
-  state._aiFanSeeds = [];
 
   previousTime = performance.now();
   updateStatus("Round 1 coming up.");
@@ -1169,15 +1160,12 @@ function refreshHUD() {
   aiScoreEl.textContent = String(state.aiScore);
   waveNumberEl.textContent = String(state.waveNumber);
   playerManaEl.textContent = String(state.playerMana);
-  if (shopManaValueEl) shopManaValueEl.textContent = String(state.playerMana);
   if (state.phase === "prep") {
     phaseLabelEl.textContent = "Prep";
   } else if (state.phase === "battle") {
     phaseLabelEl.textContent = "Battle";
   } else if (state.phase === "shop") {
     phaseLabelEl.textContent = "Shop";
-  } else if (state.phase === "waiting") {
-    phaseLabelEl.textContent = "Wait";
   } else {
     phaseLabelEl.textContent = "Round";
   }
@@ -1195,8 +1183,6 @@ function refreshHUD() {
   const canSkipToBattle = !state.gameOver && !state.paused && state.phase === "prep" && !state.battleSkipUsedThisRound;
   battleSkipBtnEl.disabled = !canSkipToBattle;
   battleSkipBtnEl.hidden = state.screen !== "game" || !canSkipToBattle;
-  // Pause is disabled in multiplayer — both players cannot pause a live match
-  pauseBtnEl.hidden = multiplayerRole !== null;
   pauseBtnEl.textContent = state.paused ? "Resume" : "Pause";
 }
 
@@ -1270,15 +1256,14 @@ function updateStatus(text) {
   statusTextEl.textContent = text;
 }
 
-function makeAttacker(owner, attackerId, sequenceOffset, fanSeedOverride) {
+function makeAttacker(owner, attackerId, sequenceOffset) {
   const def = getAttackerDef(attackerId);
   const id = state.nextUnitId;
   state.nextUnitId += 1;
-  // In multiplayer, opponent units use precomputed fanSeeds for determinism
-  const fanSeed = (fanSeedOverride !== undefined) ? fanSeedOverride : (Math.random() * 2 - 1);
+  const fanSeed = Math.random() * 2 - 1;
   const upgradeMultiplier = owner === "player"
     ? Math.pow(ATTACKER_UPGRADE_MULTIPLIER, state.playerAttackerUpgrades[attackerId] || 0)
-    : Math.pow(ATTACKER_UPGRADE_MULTIPLIER, opponentAttackerUpgrades[attackerId] || 0);
+    : 1;
 
   return {
     id,
@@ -1295,26 +1280,12 @@ function makeAttacker(owner, attackerId, sequenceOffset, fanSeedOverride) {
 }
 
 function launchWave() {
-  // In multiplayer: hand off to lobby.js to sync with opponent first
-  if (multiplayerRole !== null && window.Lobby) {
-    window.Lobby.submitPrepPhaseData();
-    return;
-  }
-  _doLaunchWave();
-}
-
-// Internal battle launch — called directly in singleplayer, or by lobby.js
-// after both players have submitted their prep data.
-function _doLaunchWave() {
   state.phase = "battle";
   state.aiDraftDone = false;
   clearSelectedTower();
 
-  const aiFanSeeds = state._aiFanSeeds || [];
   state.attackersPlayer = state.playerQueue.map((attackerId, idx) => makeAttacker("player", attackerId, idx));
-  state.attackersAI     = state.aiQueue.map((attackerId, idx)    => makeAttacker("ai",     attackerId, idx, aiFanSeeds[idx]));
-  state._aiFanSeeds = [];
-
+  state.attackersAI = state.aiQueue.map((attackerId, idx) => makeAttacker("ai", attackerId, idx));
   state.projectiles = [];
   state.towerFlashes = [];
   state.deathParticles = [];
@@ -1363,13 +1334,7 @@ function beginPrepPhase() {
   state.aiDraftDone = false;
   clearSelectedTower();
 
-  if (multiplayerRole !== null) {
-    // Opponent IS the AI — suppress local AI draft; aiDraftDone stays false
-    // until set true below so updateGame() doesn't try to run prepareAIMoves()
-    state.aiDraftDone = true;
-  } else {
-    prepareAIMoves();
-  }
+  prepareAIMoves();
   refreshAllUI();
   updateStatus(`Round ${state.waveNumber} prep. Queue attackers and place towers.`);
 }
@@ -1385,7 +1350,6 @@ function beginRoundBanner() {
 }
 
 function openRoundShop() {
-  console.warn(`[Game] advanceToNextRound called. waveNumber before increment=${state.waveNumber}`);
   const gain = 9 + state.waveNumber;
   state.playerMana = clamp(state.playerMana + gain, 0, MANA_CAP);
   state.aiMana = clamp(state.aiMana + gain, 0, MANA_CAP);
@@ -1397,7 +1361,6 @@ function openRoundShop() {
 function buildMatchSummary() {
   const margin = state.playerScore - state.aiScore;
   const profile = getProfileStats();
-  const opponentLabel = multiplayerRole !== null ? multiplayerOpponentName : "AI";
   let title = "Battle Report";
   let copy = `Final score ${state.playerScore} to ${state.aiScore}.`;
 
@@ -1405,10 +1368,10 @@ function buildMatchSummary() {
     title = "Victory";
     copy = margin > 1
       ? `You secured the lane ${state.playerScore} to ${state.aiScore} and closed the match with room to spare.`
-      : `You edged out ${opponentLabel} ${state.playerScore} to ${state.aiScore} in a tight final round.`;
+      : `You edged out the AI ${state.playerScore} to ${state.aiScore} in a tight final round.`;
   } else if (state.matchWinner === "ai") {
     title = "Defeat";
-    copy = `${opponentLabel} held the lane ${state.aiScore} to ${state.playerScore}. Review your records, then adjust your next build.`;
+    copy = `The AI held the lane ${state.aiScore} to ${state.playerScore}. Review your records, then adjust your next build.`;
   } else {
     title = "Draw";
     copy = `Both commanders finished level at ${state.playerScore}. A sharper lane plan can swing the rematch.`;
@@ -1428,7 +1391,6 @@ function buildMatchSummary() {
 }
 
 function finishMatch() {
-  console.warn(`[Game] finishMatch called. waveNumber=${state.waveNumber} playerScore=${state.playerScore} aiScore=${state.aiScore} multiplayerRole=${multiplayerRole}`);
   state.phase = "gameover";
   state.gameOver = true;
   if (state.playerScore === state.aiScore) {
@@ -1465,27 +1427,12 @@ function finishMatch() {
   refreshAllUI();
 }
 
-let _battleResolving = false;
 function onBattleFinished() {
-  if (_battleResolving) {
+  if (state.waveNumber >= MAX_ROUNDS) {
+    finishMatch();
     return;
   }
-  _battleResolving = true;
-  console.warn(`[Game] onBattleFinished. wave=${state.waveNumber} multiplayerRole=${multiplayerRole}`);
-  const clearFlag = () => { _battleResolving = false; };
-  if (multiplayerRole !== null && window.Lobby) {
-    Promise.resolve(window.Lobby.onMultiplayerBattleFinished()).finally(clearFlag);
-    return;
-  }
-  try {
-    if (state.waveNumber >= MAX_ROUNDS) {
-      finishMatch();
-      return;
-    }
-    openRoundShop();
-  } finally {
-    clearFlag();
-  }
+  openRoundShop();
 }
 
 function applyTowerUpgradeToPlacedTowers(towerId) {
@@ -2214,11 +2161,6 @@ function updateGame(dt) {
     return;
   }
 
-  // Multiplayer: waiting for opponent to submit prep data — freeze the game loop
-  if (state.phase === "waiting") {
-    return;
-  }
-
   if (state.phase === "prep") {
     if (!state.aiDraftDone) {
       prepareAIMoves();
@@ -2583,10 +2525,6 @@ shopStartBtnEl.addEventListener("click", () => {
   if (state.phase !== "shop") {
     return;
   }
-  if (multiplayerRole !== null && window.Lobby) {
-    window.Lobby.onShopStart();
-    return;
-  }
   beginRoundBanner();
 });
 
@@ -2609,7 +2547,7 @@ playMatchBtnEl.addEventListener("click", () => {
 });
 
 resumeMatchBtnEl.addEventListener("click", () => {
-  if (!state.hasActiveMatch || state.gameOver || multiplayerRole !== null) {
+  if (!state.hasActiveMatch || state.gameOver) {
     return;
   }
   state.paused = false;
@@ -2629,29 +2567,17 @@ recordsBackBtnEl.addEventListener("click", () => {
 
 progressBtnEl.addEventListener("click", () => {
   if (state.hasActiveMatch && !state.gameOver) {
-    if (multiplayerRole !== null) {
-      window.Lobby && Lobby.endSession();
-      clearSavedMatchState();
-      state.hasActiveMatch = false;
-    } else {
-      state.paused = true;
-      saveMatchStateNow();
-    }
+    state.paused = true;
+    saveMatchStateNow();
   }
   setScreen("records");
 });
 
 homeBtnEl.addEventListener("click", () => {
   if (state.hasActiveMatch && !state.gameOver) {
-    if (multiplayerRole !== null) {
-      window.Lobby && Lobby.endSession();
-      clearSavedMatchState();
-      state.hasActiveMatch = false;
-    } else {
-      state.paused = true;
-      updateStatus("Match paused from the menu.");
-      saveMatchStateNow();
-    }
+    state.paused = true;
+    updateStatus("Match paused from the menu.");
+    saveMatchStateNow();
   }
   setScreen("menu");
 });
