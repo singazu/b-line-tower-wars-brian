@@ -155,6 +155,7 @@ const ctx = canvas.getContext("2d");
 const BATTLEFIELD_BOTTOM_TRIM_PX = 10;
 const FIELD_SHIFT_Y = BATTLEFIELD_BOTTOM_TRIM_PX / LOGICAL_CANVAS_HEIGHT;
 const prefersTouchInput = window.matchMedia("(pointer: coarse)").matches || ("ontouchstart" in window);
+const DESKTOP_GAME_WIDTH = 430;
 
 const state = {
   screen: "menu",
@@ -260,10 +261,42 @@ let statsSaveTimeout = null;
 function updateViewportHeight() {
   const height = window.innerHeight || document.documentElement.clientHeight;
   document.documentElement.style.setProperty("--app-height", `${height}px`);
+  updateDesktopGameFit();
+}
+
+function isDesktopGameFitViewport() {
+  return window.matchMedia("(min-width: 901px) and (pointer: fine)").matches;
+}
+
+function updateDesktopGameFit() {
+  const shouldFitDesktopGame = state.screen === "game" && isDesktopGameFitViewport();
+  appShellEl.classList.toggle("desktop-game-fit", shouldFitDesktopGame);
+  gameScreenEl.classList.toggle("desktop-game-fit", shouldFitDesktopGame);
+
+  if (!shouldFitDesktopGame) {
+    gameScreenEl.style.removeProperty("zoom");
+    gameScreenEl.style.removeProperty("max-width");
+    gameScreenEl.style.removeProperty("margin-inline");
+    return;
+  }
+
+  gameScreenEl.style.setProperty("max-width", `${DESKTOP_GAME_WIDTH}px`);
+  gameScreenEl.style.setProperty("margin-inline", "auto");
+  gameScreenEl.style.setProperty("zoom", "1");
+
+  const shellStyles = window.getComputedStyle(appShellEl);
+  const shellPaddingTop = Number.parseFloat(shellStyles.paddingTop) || 0;
+  const shellPaddingBottom = Number.parseFloat(shellStyles.paddingBottom) || 0;
+  const availableHeight = Math.max(320, window.innerHeight - shellPaddingTop - shellPaddingBottom);
+  const naturalHeight = Math.max(1, gameScreenEl.scrollHeight);
+  const zoom = Math.min(1, availableHeight / naturalHeight);
+
+  gameScreenEl.style.setProperty("zoom", zoom.toFixed(3));
 }
 
 function resizeBattlefieldFrame() {
   if (state.screen !== "game") {
+    updateDesktopGameFit();
     return;
   }
 
@@ -285,6 +318,7 @@ function resizeBattlefieldFrame() {
 
   arenaDropZoneEl.style.width = `${Math.round(frameWidth)}px`;
   arenaDropZoneEl.style.height = `${Math.round(frameHeight)}px`;
+  updateDesktopGameFit();
 }
 
 function updateOrientationNotice() {
@@ -749,6 +783,7 @@ function setScreen(screen) {
   refreshRecordsUI();
   updateOrientationNotice();
   requestAnimationFrame(resizeBattlefieldFrame);
+  requestAnimationFrame(updateDesktopGameFit);
 }
 
 function recordUnitScore(attackerId, owner) {
