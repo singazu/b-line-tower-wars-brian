@@ -277,20 +277,20 @@
       opponentAttackerUpgrades = data.attackerUpgrades || {};
       const opponentTowerUpgrades = data.towerUpgrades || {};
 
-      // Reconstruct opponent towers with their upgrade levels applied
+      // Reconstruct opponent towers with the same runtime fields used in
+      // normal gameplay (cone math, targeting, cooldown defaults, etc.).
       state.aiTowers = data.towers.map((towerId) => {
         if (!towerId) return null;
         const def = towerDefs.find((t) => t.id === towerId);
         if (!def) return null;
         const lvl = opponentTowerUpgrades[towerId] || 0;
         const mult = Math.pow(TOWER_UPGRADE_MULTIPLIER, lvl);
-        return {
-          ...def,
-          damage:   def.damage   * mult,
-          range:    def.range    * mult,
-          fireRate: def.fireRate / mult,
-          cooldown: 0
-        };
+        const tower = createTowerInstance(def, "ai");
+        tower.damage = def.damage * mult;
+        tower.range = def.range * mult;
+        tower.fireRate = def.fireRate / mult;
+        tower.cooldown = 0;
+        return tower;
       });
 
       // Store queue + precomputed fanSeeds for _doLaunchWave
