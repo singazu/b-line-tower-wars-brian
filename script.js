@@ -311,10 +311,16 @@ function resizeBattlefieldFrame() {
   const aspect = LOGICAL_CANVAS_WIDTH / LOGICAL_CANVAS_HEIGHT;
   const maxWidth = Math.max(220, zoneRect.width);
   const maxHeight = Math.max(260, zoneRect.height);
+  const isMobilePortrait = window.matchMedia("(pointer: coarse) and (orientation: portrait)").matches;
   let frameWidth = maxWidth;
   let frameHeight = frameWidth / aspect;
 
-  if (frameHeight > maxHeight) {
+  if (isMobilePortrait) {
+    // On phone portrait, prioritize fitting the full gameplay UI in one screen.
+    const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    const cappedHeight = Math.max(280, Math.min(maxHeight, viewportHeight * 0.48));
+    frameHeight = cappedHeight;
+  } else if (frameHeight > maxHeight) {
     frameHeight = maxHeight;
     frameWidth = frameHeight * aspect;
   }
