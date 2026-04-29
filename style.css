@@ -73,6 +73,11 @@ select {
   justify-items: center;
 }
 
+.app-shell.mobile-game-fit {
+  display: grid;
+  justify-items: center;
+}
+
 #game-screen {
   touch-action: none;
   -webkit-user-select: none;
@@ -354,6 +359,11 @@ select {
 }
 
 .game-screen.desktop-game-fit {
+  width: 100%;
+  min-height: 0;
+}
+
+.game-screen.mobile-game-fit {
   width: 100%;
   min-height: 0;
 }

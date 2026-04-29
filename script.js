@@ -268,30 +268,51 @@ function isDesktopGameFitViewport() {
   return window.matchMedia("(min-width: 901px) and (pointer: fine)").matches;
 }
 
+function isMobilePortraitGameFitViewport() {
+  return window.matchMedia("(pointer: coarse) and (orientation: portrait)").matches;
+}
+
 function updateDesktopGameFit() {
   const shouldFitDesktopGame = state.screen === "game" && isDesktopGameFitViewport();
+  const shouldFitMobilePortraitGame = state.screen === "game" && isMobilePortraitGameFitViewport();
   appShellEl.classList.toggle("desktop-game-fit", shouldFitDesktopGame);
+  appShellEl.classList.toggle("mobile-game-fit", shouldFitMobilePortraitGame);
   gameScreenEl.classList.toggle("desktop-game-fit", shouldFitDesktopGame);
+  gameScreenEl.classList.toggle("mobile-game-fit", shouldFitMobilePortraitGame);
 
-  if (!shouldFitDesktopGame) {
+  if (!shouldFitDesktopGame && !shouldFitMobilePortraitGame) {
     gameScreenEl.style.removeProperty("zoom");
     gameScreenEl.style.removeProperty("max-width");
     gameScreenEl.style.removeProperty("margin-inline");
+    gameScreenEl.style.removeProperty("transform");
+    gameScreenEl.style.removeProperty("transform-origin");
     return;
   }
-
-  gameScreenEl.style.setProperty("max-width", `${DESKTOP_GAME_WIDTH}px`);
-  gameScreenEl.style.setProperty("margin-inline", "auto");
-  gameScreenEl.style.setProperty("zoom", "1");
 
   const shellStyles = window.getComputedStyle(appShellEl);
   const shellPaddingTop = Number.parseFloat(shellStyles.paddingTop) || 0;
   const shellPaddingBottom = Number.parseFloat(shellStyles.paddingBottom) || 0;
-  const availableHeight = Math.max(320, window.innerHeight - shellPaddingTop - shellPaddingBottom);
+  const availableHeight = Math.max(
+    320,
+    (window.visualViewport?.height || window.innerHeight) - shellPaddingTop - shellPaddingBottom
+  );
   const naturalHeight = Math.max(1, gameScreenEl.scrollHeight);
-  const zoom = Math.min(1, availableHeight / naturalHeight);
+  const fitScale = Math.min(1, availableHeight / naturalHeight);
 
-  gameScreenEl.style.setProperty("zoom", zoom.toFixed(3));
+  if (shouldFitDesktopGame) {
+    gameScreenEl.style.setProperty("max-width", `${DESKTOP_GAME_WIDTH}px`);
+    gameScreenEl.style.setProperty("margin-inline", "auto");
+    gameScreenEl.style.setProperty("transform", "none");
+    gameScreenEl.style.setProperty("transform-origin", "top center");
+    gameScreenEl.style.setProperty("zoom", fitScale.toFixed(3));
+    return;
+  }
+
+  gameScreenEl.style.removeProperty("zoom");
+  gameScreenEl.style.setProperty("max-width", `${DESKTOP_GAME_WIDTH}px`);
+  gameScreenEl.style.setProperty("margin-inline", "auto");
+  gameScreenEl.style.setProperty("transform-origin", "top center");
+  gameScreenEl.style.setProperty("transform", `scale(${fitScale.toFixed(3)})`);
 }
 
 function resizeBattlefieldFrame() {
@@ -1424,6 +1445,9 @@ window.addEventListener("orientationchange", () => {
   updateViewportHeight();
   lockLandscapeOrientation();
 });
+if (window.visualViewport?.addEventListener) {
+  window.visualViewport.addEventListener("resize", updateViewportHeight);
+}
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     lastAppHiddenAt = performance.now();
