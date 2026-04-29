@@ -81,7 +81,7 @@ select {
 }
 
 .screen {
-  min-height: calc(100vh - 2rem);
+  min-height: calc(var(--app-height) - 2rem - var(--safe-top) - var(--safe-bottom));
 }
 
 .orientation-notice {
@@ -941,6 +941,94 @@ button:disabled {
   .value-grid,
   .match-summary-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  .app-shell {
+    padding:
+      calc(0.4rem + var(--safe-top))
+      calc(0.45rem + var(--safe-right))
+      calc(0.4rem + var(--safe-bottom))
+      calc(0.45rem + var(--safe-left));
+  }
+
+  .game-screen {
+    gap: 0.45rem;
+  }
+
+  .top-bar {
+    padding: 0;
+  }
+
+  .top-bar-brand .eyebrow {
+    display: none;
+  }
+
+  .top-bar-brand h1 {
+    font-size: 1.15rem;
+  }
+
+  .top-bar-actions {
+    gap: 0.35rem;
+  }
+
+  .hud-strip {
+    gap: 0.35rem;
+  }
+
+  .hud-chip {
+    gap: 0.25rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.82rem;
+  }
+
+  .hud-chip span {
+    font-size: 0.72rem;
+  }
+
+  .hud-chip strong {
+    font-size: 1rem;
+  }
+
+  .arena-wrap {
+    min-height: 0;
+    border-radius: 1rem;
+  }
+
+  .timer-track {
+    height: 6rem;
+  }
+
+  .bottom-bar {
+    gap: 0.45rem;
+  }
+
+  .dock {
+    padding: 0.5rem;
+    border-radius: 0.95rem;
+  }
+
+  .dock-header {
+    margin-bottom: 0.35rem;
+  }
+
+  .dock-header p {
+    display: none;
+  }
+
+  .tower-panel,
+  .attacker-panel {
+    gap: 0.25rem;
+  }
+
+  .card {
+    min-height: 3.65rem;
+    min-width: 0;
+  }
+
+  .tower-panel .card.tower {
+    min-height: 3.05rem;
   }
 }
 

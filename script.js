@@ -259,7 +259,7 @@ let persistentStats = createEmptyPersistentStats();
 let statsSaveTimeout = null;
 
 function updateViewportHeight() {
-  const height = window.innerHeight || document.documentElement.clientHeight;
+  const height = Math.round(window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight);
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   updateDesktopGameFit();
 }
