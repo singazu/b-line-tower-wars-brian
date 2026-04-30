@@ -1301,6 +1301,13 @@ function placePlayerTower(slotIndex, towerId) {
     return;
   }
 
+  const existingTower = state.playerTowers[slotIndex];
+  if (existingTower && existingTower.id === towerDef.id && existingTower.level >= getTowerMaxLevel(towerDef.id)) {
+    updateStatus(`${towerDef.name} tower is already at max level in slot ${slotIndex + 1}.`);
+    triggerPlacementHaptic("error");
+    return;
+  }
+
   if (state.playerMana < towerDef.cost) {
     updateStatus("Not enough mana for that tower.");
     triggerPlacementHaptic("error");
@@ -1308,7 +1315,6 @@ function placePlayerTower(slotIndex, towerId) {
   }
 
   state.playerMana -= towerDef.cost;
-  const existingTower = state.playerTowers[slotIndex];
   const canUpgradeExisting = !!existingTower
     && existingTower.id === towerDef.id
     && existingTower.level < getTowerMaxLevel(towerDef.id);
