@@ -27,6 +27,23 @@ const towerDefs = [
   { id: "green", name: "Green", cost: 9, damage: 4, range: 0.635, fireRate: 1.15, color: "#22c55e", coneDegrees: BASE_TOWER_CONE_DEGREES * 0.9, maxTargets: 1 },
   { id: "orange", name: "Orange", cost: 13, damage: 4, range: 0.492, fireRate: 1.25, color: "#f97316", coneDegrees: 200, maxTargets: 2 }
 ];
+const TOWER_LEVEL_RULES = {
+  violet: {
+    maxLevel: 2,
+    damagePerLevel: 1,
+    rangePerLevel: 1.2,
+    fireRatePerLevel: 1.5,
+    iconScalePerLevel: 1.2
+  },
+  yellow: {
+    maxLevel: 2,
+    damagePerLevel: 1,
+    rangePerLevel: 1,
+    fireRatePerLevel: 1.25,
+    iconScalePerLevel: 1.2,
+    slowDurationPerLevel: 1.5
+  }
+};
 const towerSpritePaths = {
   violet: "assets/towers/violet.png",
   yellow: "assets/towers/yellow.png",
@@ -863,16 +880,48 @@ function getPlayerTowerUpgradeLevel(towerId) {
   return 1 + (state.playerTowerUpgrades[towerId] || 0);
 }
 
-function createTowerInstance(def, owner = "player") {
+function getTowerLevelRule(towerId) {
+  const rule = TOWER_LEVEL_RULES[towerId];
+  if (!rule) {
+    return {
+      maxLevel: 1,
+      damagePerLevel: 1,
+      rangePerLevel: 1,
+      fireRatePerLevel: 1,
+      iconScalePerLevel: 1
+    };
+  }
+  return rule;
+}
+
+function getTowerMaxLevel(towerId) {
+  return Math.max(1, getTowerLevelRule(towerId).maxLevel || 1);
+}
+
+function createTowerInstance(def, owner = "player", level = 1) {
   const upgradeMultiplier = owner === "player"
     ? Math.pow(TOWER_UPGRADE_MULTIPLIER, state.playerTowerUpgrades[def.id] || 0)
     : 1;
+  const levelRule = getTowerLevelRule(def.id);
+  const safeLevel = clamp(Math.floor(level), 1, getTowerMaxLevel(def.id));
+  const levelSteps = safeLevel - 1;
+  const levelDamageMultiplier = Math.pow(levelRule.damagePerLevel, levelSteps);
+  const levelRangeMultiplier = Math.pow(levelRule.rangePerLevel, levelSteps);
+  const levelFireRateMultiplier = Math.pow(levelRule.fireRatePerLevel, levelSteps);
+  const iconScale = Math.pow(levelRule.iconScalePerLevel, levelSteps);
+  const slowDurationPerLevel = levelRule.slowDurationPerLevel || 1;
+  const slowDuration = def.id === "yellow"
+    ? 1.2 * Math.pow(slowDurationPerLevel, levelSteps)
+    : 0;
   const coneDegrees = Number.isFinite(def.coneDegrees) ? def.coneDegrees : BASE_TOWER_CONE_DEGREES;
   return {
     ...def,
-    damage: def.damage * upgradeMultiplier,
-    range: def.range * upgradeMultiplier,
-    fireRate: def.fireRate / upgradeMultiplier,
+    level: safeLevel,
+    iconScale,
+    slowDuration,
+    damage: def.damage * upgradeMultiplier * levelDamageMultiplier,
+    range: def.range * upgradeMultiplier * levelRangeMultiplier,
+    fireRate: def.fireRate / (upgradeMultiplier * levelFireRateMultiplier),
     cooldown: 0,
     coneDegrees,
     coneHalfAngleRad: (coneDegrees * Math.PI) / 360,
@@ -1259,10 +1308,21 @@ function placePlayerTower(slotIndex, towerId) {
   }
 
   state.playerMana -= towerDef.cost;
-  state.playerTowers[slotIndex] = createTowerInstance(towerDef, "player");
+  const existingTower = state.playerTowers[slotIndex];
+  const canUpgradeExisting = !!existingTower
+    && existingTower.id === towerDef.id
+    && existingTower.level < getTowerMaxLevel(towerDef.id);
+
+  if (canUpgradeExisting) {
+    const nextLevel = existingTower.level + 1;
+    state.playerTowers[slotIndex] = createTowerInstance(towerDef, "player", nextLevel);
+    updateStatus(`Upgraded ${towerDef.name} tower to level ${nextLevel} in slot ${slotIndex + 1}.`);
+  } else {
+    state.playerTowers[slotIndex] = createTowerInstance(towerDef, "player", 1);
+    updateStatus(`Placed ${towerDef.name} tower in slot ${slotIndex + 1}.`);
+  }
   state.matchStats.towersPlaced += 1;
   markMatchUsage("towers", towerId, "player");
-  updateStatus(`Placed ${towerDef.name} tower in slot ${slotIndex + 1}.`);
   triggerPlacementHaptic("impact");
   clearSelectedTower();
   refreshAllUI();
@@ -1355,8 +1415,9 @@ function refreshTowerSlots() {
     if (!tower) {
       return "";
     }
+    const safeLevel = Math.max(1, Number(tower.level) || 1);
     return `<div class="slot-tower">
-      <img class="tower-icon-slot" src="${towerSpritePaths[tower.id]}" alt="${tower.name} tower" />
+      <img class="tower-icon-slot level-${safeLevel}" src="${towerSpritePaths[tower.id]}" alt="${tower.name} tower" />
     </div>`;
   };
 
@@ -2081,7 +2142,7 @@ function targetsForTower(tower, towerPos, incomingAttackers) {
   return selected;
 }
 
-function spawnProjectile(fromPos, target, damage, color, towerId, owner, speedOverride = null) {
+function spawnProjectile(fromPos, target, damage, color, towerId, owner, speedOverride = null, slowDurationOverride = null) {
   const projectileId = state.nextProjectileId;
   state.nextProjectileId += 1;
   state.projectiles.push({
@@ -2094,6 +2155,7 @@ function spawnProjectile(fromPos, target, damage, color, towerId, owner, speedOv
     targetOwner: target.owner,
     damage,
     speed: speedOverride || 1.35,
+    slowDuration: Number.isFinite(slowDurationOverride) ? slowDurationOverride : null,
     color,
     towerId,
     owner,
@@ -2102,13 +2164,14 @@ function spawnProjectile(fromPos, target, damage, color, towerId, owner, speedOv
   });
 }
 
-function applyProjectileDamage(target, damage, towerId, owner, allowAoe = true) {
+function applyProjectileDamage(target, damage, towerId, owner, allowAoe = true, slowDurationForHit = null) {
   if (!target || target.isDefeated || damage <= 0) {
     return;
   }
   target.hp -= damage;
   if (towerId === "yellow") {
-    target.slowTimer = Math.max(target.slowTimer, 1.2);
+    const appliedSlow = Number.isFinite(slowDurationForHit) ? slowDurationForHit : 1.2;
+    target.slowTimer = Math.max(target.slowTimer, appliedSlow);
   }
   if (towerId === "green") {
     target.poisonTimer = 3;
@@ -2522,7 +2585,7 @@ function updateTowerFire(dt) {
       continue;
     }
     for (const target of targets) {
-      spawnProjectile(towerPosPlayer[i], target, tower.damage, tower.color, tower.id, "player");
+      spawnProjectile(towerPosPlayer[i], target, tower.damage, tower.color, tower.id, "player", null, tower.slowDuration);
     }
     spawnTowerFlash(towerPosPlayer[i], tower.color);
     if ((tower.id === "violet" || tower.id === "yellow" || tower.id === "red" || tower.id === "green" || tower.id === "orange") && state.soundCooldowns[tower.id] <= 0) {
@@ -2546,7 +2609,7 @@ function updateTowerFire(dt) {
       continue;
     }
     for (const target of targets) {
-      spawnProjectile(towerPosAI[i], target, tower.damage, tower.color, tower.id, "ai");
+      spawnProjectile(towerPosAI[i], target, tower.damage, tower.color, tower.id, "ai", null, tower.slowDuration);
     }
     spawnTowerFlash(towerPosAI[i], tower.color);
     if ((tower.id === "violet" || tower.id === "yellow" || tower.id === "red" || tower.id === "green" || tower.id === "orange") && state.soundCooldowns[tower.id] <= 0) {
@@ -2581,7 +2644,7 @@ function updateProjectiles(dt) {
     projectile.prevY = projectile.y;
 
     if (dist <= 0.012) {
-      applyProjectileDamage(target, projectile.damage, projectile.towerId, projectile.owner);
+      applyProjectileDamage(target, projectile.damage, projectile.towerId, projectile.owner, true, projectile.slowDuration);
       if (projectile.towerId === "orange") {
         spawnProjectileImpactParticles(projectile.x, projectile.y, "#fdba74", 8);
       }

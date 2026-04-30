@@ -476,6 +476,11 @@ select {
   height: 3.05rem;
   image-rendering: pixelated;
   display: block;
+  transform-origin: center bottom;
+}
+
+.tower-icon-slot.level-2 {
+  transform: scale(1.2);
 }
 
 .timer-widget {
