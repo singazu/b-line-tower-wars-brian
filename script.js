@@ -797,7 +797,7 @@ function recordTowerKill(towerId, owner) {
   queueStatsSave();
 }
 
-function grantRoundManaBonus(owner, amount = 1) {
+function grantRoundManaBonus(owner, amount = 1, source = "kill") {
   if (owner !== "player" && owner !== "ai") {
     return;
   }
@@ -806,6 +806,7 @@ function grantRoundManaBonus(owner, amount = 1) {
   }
   if (owner === "player") {
     state.playerMana = clamp(state.playerMana + amount, 0, MANA_CAP);
+    playBonusManaSfx(source);
   } else {
     state.aiMana = clamp(state.aiMana + amount, 0, MANA_CAP);
   }
@@ -2418,6 +2419,48 @@ function playTowerFireSfx(towerId) {
   }
 }
 
+function playBonusManaSfx(source = "kill") {
+  const ctxAudio = ensureAudioContext();
+  if (!ctxAudio) {
+    return;
+  }
+  const now = ctxAudio.currentTime;
+
+  if (source === "score") {
+    const osc = ctxAudio.createOscillator();
+    const gain = ctxAudio.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.linearRampToValueAtTime(760, now + 0.07);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.045, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    osc.connect(gain);
+    gain.connect(ctxAudio.destination);
+    osc.start(now);
+    osc.stop(now + 0.13);
+    return;
+  }
+
+  const osc = ctxAudio.createOscillator();
+  const filter = ctxAudio.createBiquadFilter();
+  const gain = ctxAudio.createGain();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(240, now);
+  osc.frequency.exponentialRampToValueAtTime(130, now + 0.055);
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(320, now);
+  filter.Q.value = 0.9;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.05, now + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctxAudio.destination);
+  osc.start(now);
+  osc.stop(now + 0.095);
+}
+
 function spawnTowerFlash(pos, color) {
   state.towerFlashes.push({
     x: pos.x,
@@ -2707,10 +2750,10 @@ function updateAttackers(dt) {
   state.playerScore += playerScored;
   state.aiScore += aiScored;
   if (playerScored > 0) {
-    grantRoundManaBonus("player", playerScored);
+    grantRoundManaBonus("player", playerScored, "score");
   }
   if (aiScored > 0) {
-    grantRoundManaBonus("ai", aiScored);
+    grantRoundManaBonus("ai", aiScored, "score");
   }
 }
 
