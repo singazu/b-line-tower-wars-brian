@@ -241,6 +241,19 @@ window.MP = (function () {
       const roomRef = db.ref(`rooms/${roomId}`);
       hostRoomListener = roomRef.on("value", (snap) => {
         const room = snap.val();
+        if (!room && !matched) {
+          console.warn("[MP] Waiting room disappeared while hosting; recreating.", {
+            roomId,
+            uid: myUid,
+            tabId: myTabId
+          });
+          myWaitingRoomId = null;
+          _detachHostRoomListener(roomId);
+          _enterHostingMode("waiting-room-missing").catch((err) => {
+            console.warn("[MP] Failed to recreate waiting room.", { message: err.message });
+          });
+          return;
+        }
         if (!room || matched) {
           return;
         }
@@ -515,7 +528,6 @@ window.MP = (function () {
   async function _createWaitingRoom() {
     const roomId = _generateId("room");
     const roomRef = db.ref(`rooms/${roomId}`);
-    await roomRef.onDisconnect().remove();
     await roomRef.set({
       createdAt: firebase.database.ServerValue.TIMESTAMP,
       status: "waiting",
