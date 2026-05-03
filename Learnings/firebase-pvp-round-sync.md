@@ -8,9 +8,11 @@ PvP readiness must be scoped to a specific round. Shared room-level ready flags 
 - Use `rooms/<roomId>/rounds/<waveNumber>/<role>Ready` for readiness, alongside the submitted prep payload for the same wave.
 - Avoid resetting shared `rooms/<roomId>/hostReady` or `guestReady` after battle completion; those flags are not safe for multi-round state.
 - Waiting-room claims should be transactional so a stale or already-claimed room cannot be overwritten by a later join attempt.
+- Do not cap the waiting-room scan before staleness filtering. Old orphan `status: "waiting"` rooms can fill a limited query window and hide fresh rooms from real players.
 
 ## Resolution
 - `submitPrepData` now writes per-round ready flags.
 - `listenForBothReady` listens to the current round node.
 - `completeBattle` no longer clears shared room-level ready flags.
 - Joining a waiting room now uses a Firebase transaction conditioned on `status === "waiting"` and no existing guest.
+- Waiting-room scans remove stale rooms and read all waiting rooms so orphan rooms do not strand matchmaking.

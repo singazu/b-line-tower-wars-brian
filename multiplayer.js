@@ -230,7 +230,6 @@ window.MP = (function () {
 
       const roomId = await _createWaitingRoom();
       myWaitingRoomId = roomId;
-      await db.ref(`rooms/${roomId}`).onDisconnect().remove();
 
       console.info("[MP] Switching to hosting mode.", {
         roomId,
@@ -353,7 +352,6 @@ window.MP = (function () {
     const snap = await db.ref("rooms")
       .orderByChild("status")
       .equalTo("waiting")
-      .limitToFirst(20)
       .once("value");
 
     const rooms = snap.val() || {};
@@ -388,9 +386,15 @@ window.MP = (function () {
 
         const stale = !room.createdAt || room.createdAt < now - STALE_QUEUE_MS;
         if (stale) {
-          console.debug("[MP] Skipping candidate room: stale.", {
+          console.warn("[MP] Removing stale waiting room during scan.", {
             roomId,
             createdAt: room.createdAt || null
+          });
+          db.ref(`rooms/${roomId}`).remove().catch((err) => {
+            console.warn("[MP] Failed to remove stale waiting room.", {
+              roomId,
+              message: err.message
+            });
           });
           return false;
         }
@@ -529,7 +533,9 @@ window.MP = (function () {
 
   async function _createWaitingRoom() {
     const roomId = _generateId("room");
-    await db.ref(`rooms/${roomId}`).set({
+    const roomRef = db.ref(`rooms/${roomId}`);
+    await roomRef.onDisconnect().remove();
+    await roomRef.set({
       createdAt: firebase.database.ServerValue.TIMESTAMP,
       status: "waiting",
       host: myUid,
